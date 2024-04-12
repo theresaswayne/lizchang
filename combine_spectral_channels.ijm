@@ -13,6 +13,7 @@ id = getImageID();
 title = getTitle();
 dotIndex = indexOf(title, ".");
 basename = substring(title, 0, dotIndex);
+extension = substring(title, dotIndex);
 getDimensions(width, height, channels, slices, frames);
 
 // ---- Process image ----
@@ -31,7 +32,7 @@ rename("Long");
 // pull out transmitted image channel 8
 selectImage(title);
 run("Duplicate...", "duplicate range=8");
-selectImage(basename+"-1"+".nd2");
+selectImage(basename+"-1"+extension);
 run("32-bit");
 rename("Trans");
 

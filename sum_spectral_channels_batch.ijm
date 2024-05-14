@@ -3,13 +3,11 @@
 #@ String (label = "File suffix", value = ".nd2") suffix
 
 // Input: 8-channel spectral image with transmitted in the last channel
-// Output: 32-bit 3-channel image:
-//		Channel 1 = sum of input channels 1-3
-//		Channel 2 = sum of input channels 5-7 (channel 4 of input is unused)
-//		Channel 3 = input channel 8, converted to 32 bit for merging
+// Output: Three 32-bit 3-channel images:
+//		Ch00 = sum of input channels 1-3
+//		Ch01 = sum of input channels 5-7 (channel 4 of input is unused)
+//		Ch03 = input channel 8, converted to 32 bit for merging
 // Theresa Swayne, Columbia University, 2024 for Hapshepsut Jackson and Liz Chang 
-
-// TODO: create separate images following filename requirements
 
 setBatchMode(true);
 run("Bio-Formats Macro Extensions");

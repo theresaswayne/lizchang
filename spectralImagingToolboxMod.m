@@ -121,8 +121,8 @@ if(~isnan(GPref) && ~isempty(refIm)) % load reference image specified in input G
         omeMeta = data{1, 4}; % standardized metadata
         nLambda = omeMeta.getChannelCount(0); % number of C slices
         
-        % Get wavelengths from metadata
-        wavelengthsRef = zeros(nLambda,1);
+        % Get wavelengths from metadata -- ASSUME LAST CHANNEL IS TD
+        wavelengthsRef = zeros(nLambda-1,1);
 
         for i=1:nLambda-1 % because TD is the last channel and we will ignore it
             chKey = append('Global Name #',string(i+1)); % because Name #1 is (erroneously) called TD
@@ -181,7 +181,7 @@ while i <= nImg
     
     % Get wavelengths from metadata
 
-    wavelengths = zeros(nLambda,1);
+    wavelengths = zeros(nLambda-1,1);
     for cc=1:nLambda-1 % because TD is the last channel and we will ignore it
         chKey = append('Global Name #',string(cc+1)); % because Name #1 is (erroneously) called TD
         chVal = metadata.get(chKey); % a string including " nm"
@@ -223,7 +223,7 @@ while i <= nImg
         summedImages = zeros(size(raw{1,1}));
         
         % Sum images in stack for selecting appropriate thresholding level
-        for c=1:nLambda % for each wavelength
+        for c=1:nLambda-1 % for each wavelength except TD
             raw{c}= im2double(raw{c}); % convert to double
             raw{c}(isnan(raw{c}))=0; % removal of NaN values from wavelength image for future processing
             summedImages=summedImages+raw{c}; % summed intensity of all wavelength images
@@ -234,9 +234,9 @@ while i <= nImg
         
         % Apply thresholding and generate spectrum
         thresholded = raw; % create thresholded image object array
-        cSliceWeighted = zeros(nLambda,1); 
+        cSliceWeighted = zeros(nLambda-1,1); 
         
-        for c=1:nLambda % for each wavelength
+        for c=1:nLambda-1 % for each wavelength
             % Apply median filtering if enabled
             if preProcess
                 thresholded{c} = medfilt2(thresholded{c});
@@ -382,9 +382,9 @@ while i <= nImg
                 pxCountObjGP{ii} = numel(objectGP(:));
                 
                 % Store membrane histogram and spectrum figure and data
-                cSliceObject = zeros(nLambda,1);
+                cSliceObject = zeros(nLambda-1,1);
                 objectThresh = croppedObjectsThresh{ii};
-                for c=1:nLambda % for each wavelength
+                for c=1:nLambda-1 % for each wavelength
                     cSliceObject(c) = nansum(objectThresh{c}(:))/numel(~isnan(objectThresh{c}(:))); % mean of c-slice in c-stack
                 end
                 figure,plot(wavelengths, cSliceObject(:), '-m.', 'MarkerSize', 30, 'LineWidth', 3, 'Color', 'b', 'MarkerFaceColor', 'k', 'MarkerEdgeColor', 'k')
@@ -445,7 +445,7 @@ while i <= nImg
                     objMembraneGP{ii}(~mask)=nan;
                     
                     % Apply segmentation to pre-processed images
-                    for c=1:nLambda % for each wavelength in c-stack
+                    for c=1:nLambda-1 % for each wavelength in c-stack
                         objMembraneThresh{ii}{c} = croppedObjectsThresh{ii}{c};
                         objMembraneThresh{ii}{c}(~mask) = nan;
                     end
@@ -503,8 +503,8 @@ while i <= nImg
                     end
                     
                     % Store membrane histogram and spectrum figure and data
-                    cSliceMembrane = zeros(nLambda,1);
-                    for c=1:nLambda % for each wavelength
+                    cSliceMembrane = zeros(nLambda-1,1);
+                    for c=1:nLambda-1 % for each wavelength
                         cSliceMembrane(c) = nansum(membraneThresh{c}(:))/numel(~isnan(membraneThresh{c}(:))); % mean of c-slice in c-stack
                     end
                     figure,plot(wavelengths, cSliceMembrane(:), '-m.', 'MarkerSize', 30, 'LineWidth', 3, 'Color', 'b', 'MarkerFaceColor', 'k', 'MarkerEdgeColor', 'k')

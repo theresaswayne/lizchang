@@ -6,6 +6,8 @@
 // GPcalc_Rois.jim
 // Based on GPcalc macros by quokka and Ofra Golani
 // TODO: insert names and citations
+// TODO: Strip image extension when naming the histograms
+// TODO: fix histo counts smoothed norm columns
 // Updated by Theresa Swayne, 2025
 // -- handles ROIs
 
@@ -20,9 +22,10 @@
 //	selectImage(nImages);
 //	close();
 //}
-closeAllImages(); // this is a helper function 
+closeAllImages(); // this calls a helper function 
 
 print("\\Clear"); // clear Log window
+roiManager("reset");
 
 setBatchMode(true); // faster performance
 run("Bio-Formats Macro Extensions"); // support native microscope files
@@ -293,9 +296,10 @@ while (nImages > 0) { // clean up open images
 	selectImage(nImages);
 	close(); 
 }
+roiManager("reset");
 setBatchMode(false);
 print("Finished");
-// finished now! Write the log.
+// finished now! Write the log. (TODO: Replace this function with line-by-line logging)
 printInfo(StartTime);
 
 // ---- Functions ----
@@ -324,25 +328,35 @@ function processFolder(imageInput, roiInput, output, suffix) {
 function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) {
 	
 	// this function processes a single image
+
 	
 	imagePath = imageFolder + File.separator + imgName;
-	print("Processing file",fileNumber," at path" ,imagePath);
+	// print("Processing file",fileNumber," at path" ,imagePath);
 
 	// determine the name of the file without extension
 	dotIndex = lastIndexOf(imgName, ".");
 	basename = substring(imgName, 0, dotIndex); 
 	extension = substring(imgName, dotIndex);
 	
-	print("Processing file at path" ,imagePath,", with basename",basename);
+	print("Processing image",fileNumber,"at path" ,imagePath,", with basename",basename);
 	
 	dir = imageFolder; // legacy variable
 
 	//setBatchMode(true);
 
-	// open the current image, splitting channels
+	// open the image, splitting channels
 	run("Bio-Formats", "open=&imagePath color_mode=Default view=[Hyperstack] stack_order=Default virtual split_channels");
 	//run("Bio-Formats Importer", "open=[" + dir + imgName + "] color_mode=Default view=[Standard ImageJ] stack_order=Default virtual split_channels");
 	
+	// open ROIs for this image
+	
+	roiFile = basename + "_Rois.zip";
+	roiPath = roiFolder + File.separator +roiFile;
+	
+	roiManager("reset");
+	print("Opening ROI", roiPath); // roi path in log
+	roiManager("Open", roiPath);
+		
 	// set window titles
 	ordWindowTitle = imgName + " - C=" + chOrdered - 1;
 	disWindowTitle = imgName + " - C=" + chDisordered - 1;
@@ -415,7 +429,6 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 		rename(imfWindowTitle);
 		
 	}
-
 
 	//GP Analysis
 
@@ -493,10 +506,31 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 	selectWindow(SumMaskName);
 	close();
 
-	// histograms
+	// generate GP-masked histograms for whole image
 	HistoFileName=histogramGP_Dir + imgName + "GP Histogram" + "(masked by " + Option_D + ").csv";
-	HistogramGeneration(maskedGPname, HistoFileName);
+	HistogramGeneration(maskedGPname, HistoFileName); // histos masked on the GP channel
 
+	// generate GP-masked histograms for each ROI
+	numRois = roiManager("count");
+	roiManager("Deselect");
+	run("Select None");
+	
+	for(roiIndex=0; roiIndex < numRois; roiIndex++) // loop through ROIs
+		{ 
+		roiNum = roiIndex + 1; // so that image names start with 1 like the ROI labels
+		roiManager("Select", roiIndex);  // ROI indices start with 0
+		roiName = Roi.getName();
+		print("Generating masked histogram for ROI",roiNum, "named",roiName);
+		RoiHistoFileName=histogramGP_Dir + imgName + "_" + roiName + "_GP Histogram (masked by " + Option_D + ").csv";
+		HistogramGeneration(maskedGPname, RoiHistoFileName); // histos masked on the GP channel
+		roiManager("deselect");
+		run("Select None");
+		}
+	
+	roiManager("deselect");
+	run("Select None");
+	print("Measured",numRois,"masked ROIs");
+	
 	// if we are given some other intensity channel (the immunofluoresence channel) then...
 	if (ch_IF != 0) {
 	
@@ -553,10 +587,31 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 		selectWindow(IFmaskName);
 		close();
 					
-		HistoFileName=histogramIF_Dir + imgName + "GP Histogram" + "(masked by " + Option_C + ").csv";
-		HistogramGeneration(GPIFName, HistoFileName);
-
-	}
+		HistoFileName=histogramIF_Dir + imgName + "_GP Histogram (masked by " + Option_C + ").csv";
+		HistogramGeneration(GPIFName, HistoFileName); // for the whole image
+		
+		// generate IF-masked histograms for each ROI
+		numRois = roiManager("count");
+		roiManager("Deselect");
+		run("Select None");
+	
+		for(roiIndex=0; roiIndex < numRois; roiIndex++) // loop through ROIs
+			{ 
+			roiNum = roiIndex + 1; // so that image names start with 1 like the ROI labels
+			roiManager("Select", roiIndex);  // ROI indices start with 0
+			roiName = Roi.getName();
+			print("Generating IF-masked histogram for ROI",roiNum, "named",roiName);
+			RoiHistoFileName=histogramIF_Dir + imgName + "_" + roiName + "_GP Histogram (masked by " + Option_C + ").csv";
+			HistogramGeneration(GPIFName, RoiHistoFileName); // histos masked on the IF channel
+			roiManager("deselect");
+			run("Select None");
+			}
+		
+		roiManager("deselect");
+		run("Select None");
+		print("Measured",numRois,"ROIs masked by the IF channel.");
+	
+		}
 
 	if (MakeHSBimages=="Yes") {
 
@@ -573,20 +628,6 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 			HSBgeneration(sumName, Option_D);
 			HSBgeneration(imfWindowTitle, Option_C);
 		}
-
-	//		// HSBv2
-	//		if (HSBrightChannel==Option_A) {
-	//			HSBv2(ordWindowTitle, Option_A);
-	//		} else if (HSBrightChannel==Option_B) {
-	//			HSBv2(disWindowTitle, Option_B);
-	//		} else if (HSBrightChannel==Option_C) {
-	//			HSBv2(imfWindowTitle, Option_C);
-	//		} else if (HSBrightChannel==Option_D) {
-	//			HSBv2(sumName, Option_D);
-	//		} else if (HSBrightChannel==Option_E) {
-	//			HSBv2(sumName, Option_D);
-	//			HSBv2(imfWindowTitle, Option_C);
-	//		}
 
 
 	}
@@ -839,7 +880,10 @@ function MakeLUTbar(CmapLUTName, CmapMin, CmapMax,SaveFileName) {
 
 }
 
-function printInfo (StartTime) {
+function printInfo (StartTime) { //TODO: Replace this with line by line log stating options and thresholds for each image, comma or tab separated
+	// intro -- start date-time, ij version, macro name, params
+	// per file -- path for images and rois, threshold for gp, threshold for if, pssibly gp peak value
+	// end time and elapsed time
 
 	FinishTime = getTime();
 	TOTALtime = (FinishTime - StartTime) / 1000;

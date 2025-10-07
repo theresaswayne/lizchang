@@ -37,8 +37,9 @@ nBins = 100; // number of histogram bins to use.
 
 // ---- Run ----
 
-print("Starting");
-
+// initialise the timer for the log
+startTime = getTime();
+print("Starting at", startTime);
 // Initialise defaults and selection lists
 YNquestion = newArray("Yes","No");
 GFapplication = newArray("Image data (pre GP calc)","Histogram data (post GP calc)");
@@ -68,7 +69,7 @@ Dialog.addChoice("Lookup Table for GP Images:", LUTlist, "Blu2Yel-BlackMinimum")
 
 Dialog.addMessage("------------------------------------------- Mask Thresholds ------------------------------------------");
 Dialog.addChoice("Threshold method: ", ThreshList, "Normal");
-Dialog.addChoice("Normal method: Tweak thresholds manually?",YNquestion, "Yes");
+Dialog.addChoice("Normal method only: Tweak thresholds manually?",YNquestion, "Yes");
 
 Dialog.addMessage("--------------------------------------------- False-colour Images ---------------------------------------------");
 Dialog.addChoice("Do you want to generate False-colour images?",YNquestion, "Yes");
@@ -121,6 +122,8 @@ if (ThresholdType == "Normal"){
 		
 		GPmaskThreshold = Dialog.getNumber();
 		IFmaskThreshold = Dialog.getNumber();
+		ThreshForAll = false; // because we use the same threshold for all images, not adjusting for each
+		// TODO: clarify language for this!
 		
 	} else {
 
@@ -143,8 +146,6 @@ if (ThresholdType == "Normal"){
 		}
 	}
 }
-
-
 
 // Additional user choices for HSB images
 
@@ -181,10 +182,8 @@ if (MakeHSBimages == "Yes") {
 }
 
 
-// initialise the timer for the log
-StartTime = getTime();
+// Set up results folders with date-time stamp
 
-// Set up results folder & logging info
 getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
 if (hour<10) {
 	hours = "0"+hour;
@@ -253,9 +252,7 @@ if (MakeHSBimages == "Yes") {
 	HSB_LUTs_Dir = HSB_Dir + "colorbars" + File.separator;
 	File.makeDirectory(HSB_LUTs_Dir);
  }
-
 }
-
 
 if (ch_IF != 0) {
  IF_images_Dir = InputImages_Dir + LabelchIF + File.separator;
@@ -286,10 +283,72 @@ if (GFactorAppliedTo == "Image data (pre GP calc)") {
 for (k = 0; k < nBins; k++) {
 	GPcorrected[k] = -(1 + GPuncorrected[k] + (GFHistograms * GPuncorrected[k]) - GFHistograms) / (-1 - GPuncorrected[k] + (GFHistograms * GPuncorrected[k]) - GFHistograms);
 }
-	
 
-// Call the processFolder function, including the parameters collected at the beginning of the script
+// ---- Begin batch processing ----
+
+// log initial parameters
+print("GP calculation using ImageJ version " + getVersion());
+print("Run time "+DayNames[dayOfWeek]+", "+dayOfMonth+" "+MonthNames[month]+" "+year+" - "+hours+":"+minutes);
+print("----------------------------------");
+print("Processing files with extension: " + fileSuffix);
+print("\n");
+print("------ Input Images ------");
+print("Ordered channel: " + chOrdered);
+print("Disordered channel: " + chDisordered);
+if (ch_IF != 0) {
+	print("Immunofluoresence channel: " + ch_IF); 
+} else { 
+	print("Immunofluoresence channel: Not present"); 
+};
+print("\n");
+
+print("------ Output GP Images ------");
+print("GP images were calculated using input image bit depth: " + UseNativeBitDepth);
+print("GP images' lookup table: " + GPLUTname);
+print("G factor: " + GFactor + " was applied to " + GFactorAppliedTo + ".");
+print("\n");
+print("------ Output GP-masked GP Images ------");
+print("GP mask threshold method: " + ThresholdType);
+if (ThresholdType=="Normal") {
+	if (ThreshForAll) { // TODO: Fix undefined variable if settings = normal, no tweaking
+		print("GP threshold set individually for each image");
+	}
+	else {
+		print("GP-mask threshold value (lower limit, 32 bit): " + GPmaskThreshold);
+	}
+}
+print("\n");
+if (ch_IF != 0) { 
+	print("------ Output IF-masked GP Images ------");
+	print("IF-mask threshold method: " + ThresholdType);
+	
+	if (ThresholdType=="Normal") {
+		if (ThreshForAll) {
+			print("IF threshold set individually for each image");
+		}
+		else {
+			print("IF-mask threshold value (lower limit): "+ IFmaskThreshold);
+		}
+	}
+	print("\n");
+}
+if (MakeHSBimages=="Yes") {
+	print("------ Output HSB GP Images ------");
+	print("Intensity from: " + HSBrightChannel);
+	if (ApplySameBrightness=="Yes") {
+		print("Forced consistent GP intensity range: " + GPminUserSet + " (min) to " + GPmaxUserSet + " (max)");	
+	}
+	print("HSB images' lookup table: " + HSBLUTName);
+print("\n");
+}
+print("Main results folder is: ");
+print(" " + results_Dir);
+print("\n");
+
+
 processFolder(imageInputFolder, roiInputFolder, outputFolder, fileSuffix);
+
+// ---- Clean up -----
 
 // Clean up images and get out of batch mode
 while (nImages > 0) { // clean up open images
@@ -297,10 +356,19 @@ while (nImages > 0) { // clean up open images
 	close(); 
 }
 roiManager("reset");
-setBatchMode(false);
-print("Finished");
+//setBatchMode(false);
+
+// Finish and save the log
+endTime = getTime();
+elapsedTime = endTime - startTime;
+print("Finished in", elapsedTime/1000, "sec");
+selectWindow("Log");
+saveAs("Text", results_Dir + "ProcessingLog_ "+year+months+dayOfMonths+"("+hours+"h"+minutes+")");
+setBatchMode("exit and display");
+
+
 // finished now! Write the log. (TODO: Replace this function with line-by-line logging)
-printInfo(StartTime);
+// printInfo(StartTime);
 
 // ---- Functions ----
 
@@ -328,10 +396,10 @@ function processFolder(imageInput, roiInput, output, suffix) {
 function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) {
 	
 	// this function processes a single image
-
+	// TODO: Add to log: threshold for gp, threshold for if, possibly gp peak value
 	
 	imagePath = imageFolder + File.separator + imgName;
-	// print("Processing file",fileNumber," at path" ,imagePath);
+	//print("Processing file",fileNumber," at path" ,imagePath);
 
 	// determine the name of the file without extension
 	dotIndex = lastIndexOf(imgName, ".");
@@ -470,10 +538,11 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 				setOption("BlackBackground", true);
 				setAutoThreshold("Default dark");
 				run("Threshold..."); // ask user to set the threshold
-				waitForUser("Summed Intensity Image for GP Mask\n1. Adjust only the low-end threshold (the first slider).\n2. Click Apply to apply once you have found a good threshold./\n3. Select the 'Set to NaN' option when asked.\n4. Click OK here to continue...");
+				waitForUser("Summed Intensity Image for GP Mask\n1. Adjust only the low-end threshold (the first slider).\n2. Click Apply to apply once you have found a good threshold.\n3. Select the 'Set to NaN' option when asked.\n4. Click OK here to continue...");
 				//if (isOpen('Threshold')) {selectWindow('Threshold'); run('Close');}
 				run("Threshold..."); // run threshold again to retrieve the values
-				getThreshold(GPmaskThreshold,currGPMax); // redefine the threshold after user tweaking
+				getThreshold(GPmaskThreshold,currGPMax); // update the threshold value as tweaked by user
+				print("Threshold for GP =", GPmaskThreshold);
 				if (isOpen('Threshold')) {selectWindow('Threshold'); run('Close');}
 		 		setBatchMode("hide");
 		 		
@@ -481,6 +550,7 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 				// TODO: Fix the failure to use the previously set value
 				getMinAndMax(currGPMin,currGPMax);
 				setThreshold(GPmaskThreshold, currGPMax);
+				print("Threshold for GP =", GPmaskThreshold);
 
 			}
 			
@@ -488,12 +558,13 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 
 			getMinAndMax(currGPMin,currGPMax);
 			setThreshold(GPmaskThreshold, currGPMax);
-			
+			print("Threshold for GP =", GPmaskThreshold);
 		}
 
 	} else if (ThresholdType == "Otsu") {
 
 		setAutoThreshold("Otsu dark");
+		print("Used Otsu threshold for GP sum image");
 		
 	}
 
@@ -555,6 +626,7 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 	 	 			//if (isOpen('Threshold')) {selectWindow('Threshold'); run('Close');}
 					//run("Threshold...");
 					getThreshold(IFmaskThreshold,currIFMax);
+					print("Threshold for IF =", IFmaskThreshold);
 					if (isOpen('Threshold')) {selectWindow('Threshold'); run('Close');}
 			 		setBatchMode("hide");
 			 		
@@ -562,19 +634,20 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 
 				getMinAndMax(currIFMin,currIFMax);
 				setThreshold(IFmaskThreshold, currIFMax);
-				
+				print("Threshold for IF =", IFmaskThreshold);
 				}
 				
 			} else {
 
 				getMinAndMax(currIFMin,currIFMax);
 				setThreshold(IFmaskThreshold, currIFMax);
-				
+				print("Threshold for IF =", IFmaskThreshold);
 			}
 
 		} else if (ThresholdType == "Otsu") {
 			
 			setAutoThreshold("Otsu dark");
+			print("Used Otsu threshold for IF image");
 			
 		}
 
@@ -666,7 +739,7 @@ function createNaNMask() {
 	
 	run("Options...", "black");
 	run("32-bit");
-	run("Macro...", "code=[if (v == 0) v = NaN;]"); // set the background pixels to NaNs
+	run("Macro...", "code=[if (v == 0) v = NaN;]"); // set the background pixels to NaNs using Process > Math > Expression evaluator
 	run("Macro...", "code=[if (v > -1) v = 1;]");   // set the foreground pixels to 1.0
 	setMinAndMax(0.0,1.0);
 	
@@ -880,98 +953,82 @@ function MakeLUTbar(CmapLUTName, CmapMin, CmapMax,SaveFileName) {
 
 }
 
-function printInfo (StartTime) { //TODO: Replace this with line by line log stating options and thresholds for each image, comma or tab separated
+//function printInfo (StartTime) { //TODO: Replace this with line by line log stating options and thresholds for each image, comma or tab separated
 	// intro -- start date-time, ij version, macro name, params
 	// per file -- path for images and rois, threshold for gp, threshold for if, pssibly gp peak value
 	// end time and elapsed time
 
-	FinishTime = getTime();
-	TOTALtime = (FinishTime - StartTime) / 1000;
+//	FinishTime = getTime();
+//	TOTALtime = (FinishTime - StartTime) / 1000;
 	
-	listGP = getFileList(GP_images_Dir);
+//	listGP = getFileList(GP_images_Dir);
 
-	print("\\Clear");
-	print("----------------------------------");
-	print("	 GP image analysis macro");
-	print("	 version DW 2019.11.20 modified by TS 2025.10");
-	print("----------------------------------");
-	print("Original Reference:");
-	print(" Quantitative Imaging of Membrane Lipid Order in Cells and Organisms");
-	print(" Owen DM, Rentero C, Magenau A, Abu-Siniyeh A, and Gaus K.");
-	print(" Nature Protocols 2011 7(1) p24-35.");
-	print("\n");
 	
-	print("----------------------------------");
-	print("ImageJ version " + getVersion());
-	print(""+DayNames[dayOfWeek]+", "+dayOfMonth+" "+MonthNames[month]+" "+year+" - "+hours+":"+minutes);
-	print("----------------------------------");
-	print("Processed files with extension: " + fileSuffix);
-	print("\n");
 	
-	print("------ Input Images ------");
-	print("Ordered channel: " + chOrdered);
-	print("Disordered channel: " + chDisordered);
-	if (ch_IF != 0) {
-		print("Immunofluoresence channel: " + ch_IF); 
-	} else { 
-		print("Immunofluoresence channel: Not present"); 
-	};
-	print("\n");
+//	print("------ Input Images ------");
+//	print("Ordered channel: " + chOrdered);
+//	print("Disordered channel: " + chDisordered);
+//	if (ch_IF != 0) {
+//		print("Immunofluoresence channel: " + ch_IF); 
+//	} else { 
+//		print("Immunofluoresence channel: Not present"); 
+//	};
+//	print("\n");
+//	
+//	print("------ Output GP Images ------");
+//	print("GP images were calculated using input image bit depth: " + UseNativeBitDepth);
+//	print("GP images' lookup table: " + GPLUTname);
+//	print("G factor: " + GFactor + " was applied to " + GFactorAppliedTo + ".");
+//	print("\n");
 	
-	print("------ Output GP Images ------");
-	print("GP images were calculated using input image bit depth: " + UseNativeBitDepth);
-	print("GP images' lookup table: " + GPLUTname);
-	print("G factor: " + GFactor + " was applied to " + GFactorAppliedTo + ".");
-	print("\n");
-	
-	print("------ Output GP-masked GP Images ------");
-	print("GP mask threshold method: " + ThresholdType);
-	if (ThresholdType=="Normal") {
-		if (ThreshForAll) { // TODO: Fix undefined variable if settings = normal, no tweaking
-			print("GP threshold set individually for each image");
-		}
-		else {
-			print("GP-mask threshold value (lower limit, 32 bit): " + GPmaskThreshold);
-		}
-	}
-	print("\n");
-	
-	if (ch_IF != 0) { 
-		print("------ Output IF-masked GP Images ------");
-		print("IF-mask threshold method: " + ThresholdType);
-		
-		if (ThresholdType=="Normal") {
-			if (ThreshForAll) {
-				print("IF threshold set individually for each image");
-			}
-			else {
-				print("IF-mask threshold value (lower limit): "+ IFmaskThreshold);
-			}
-		}
-		print("\n");
-	}
-	
-	if (MakeHSBimages=="Yes") {
-		print("------ Output HSB GP Images ------");
-		print("Intensity from: " + HSBrightChannel);
-		if (ApplySameBrightness=="Yes") {
-			print("Forced consistent GP intensity range: " + GPminUserSet + " (min) to " + GPmaxUserSet + " (max)");	
-		}
-		print("HSB images' lookup table: " + HSBLUTName);
-	print("\n");
-	}
-	print("Main results folder is: ");
-	print(" " + results_Dir);
-	print("\n");
-	print("----------------------------------");
-	print("Execution time: " + d2s(TOTALtime,2) + " seconds.");
-	print("-------------- EoF ---------------");
+//	print("------ Output GP-masked GP Images ------");
+//	print("GP mask threshold method: " + ThresholdType);
+//	if (ThresholdType=="Normal") {
+//		if (ThreshForAll) { // TODO: Fix undefined variable if settings = normal, no tweaking
+//			print("GP threshold set individually for each image");
+//		}
+//		else {
+//			print("GP-mask threshold value (lower limit, 32 bit): " + GPmaskThreshold);
+//		}
+//	}
+//	print("\n");
+//	
+//	if (ch_IF != 0) { 
+//		print("------ Output IF-masked GP Images ------");
+//		print("IF-mask threshold method: " + ThresholdType);
+//		
+//		if (ThresholdType=="Normal") {
+//			if (ThreshForAll) {
+//				print("IF threshold set individually for each image");
+//			}
+//			else {
+//				print("IF-mask threshold value (lower limit): "+ IFmaskThreshold);
+//			}
+//		}
+//		print("\n");
+//	}
+//	
+//	if (MakeHSBimages=="Yes") {
+//		print("------ Output HSB GP Images ------");
+//		print("Intensity from: " + HSBrightChannel);
+//		if (ApplySameBrightness=="Yes") {
+//			print("Forced consistent GP intensity range: " + GPminUserSet + " (min) to " + GPmaxUserSet + " (max)");	
+//		}
+//		print("HSB images' lookup table: " + HSBLUTName);
+//	print("\n");
+//	}
+//	print("Main results folder is: ");
+//	print(" " + results_Dir);
+//	print("\n");
+//	print("----------------------------------");
+//	print("Execution time: " + d2s(TOTALtime,2) + " seconds.");
+//	print("-------------- EoF ---------------");
+//
+//	selectWindow("Log");
+//	saveAs("Text", results_Dir + "ProcessingLog_ "+year+months+dayOfMonths+"("+hours+"h"+minutes+")");
+//	setBatchMode("exit and display");
 
-	selectWindow("Log");
-	saveAs("Text", results_Dir + "ProcessingLog_ "+year+months+dayOfMonths+"("+hours+"h"+minutes+")");
-	setBatchMode("exit and display");
-
-}
+//}
 
 
 // This shows only those files with TargetExtn found within InputFolder.

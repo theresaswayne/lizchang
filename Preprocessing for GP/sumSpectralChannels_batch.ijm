@@ -3,10 +3,10 @@
 #@ String (label = "File suffix", value = ".nd2") suffix
 
 // Input: 8-channel spectral image with transmitted in the last channel
-// Output: Three 32-bit 3-channel images:
+// Output: Three 32-bit single-channel images:
 //		Ch00 = sum of input channels 1-3
 //		Ch01 = sum of input channels 5-7 (channel 4 of input is unused)
-//		Ch03 = input channel 8, converted to 32 bit for merging
+//		Ch02 = input channel 8, converted to 32 bit
 // Theresa Swayne, Columbia University, 2024 for Hapshepsut Jackson and Liz Chang 
 
 setBatchMode(true);

@@ -9,6 +9,8 @@
 //		Channel 3 = input channel 8, converted to 32 bit for merging
 // Theresa Swayne, Columbia University, 2024 for Hapshepsut Jackson and Liz Chang 
 
+// Warning! Do not save to the input folder!
+
 setBatchMode(true);
 run("Bio-Formats Macro Extensions");
 
@@ -43,31 +45,47 @@ function processFile(input, output, file) {
 	
 	// ---- Process image ----
 	
+	
 	// Project short wavelength channels 1-3
 	run("Z Project...", "stop=3 projection=[Sum Slices]");
 	selectImage("SUM_"+title);
 	rename("Short");
+//	shortName = basename+"_ch00.tif";
+//	selectWindow("Short");
+//	saveAs("tiff", output + File.separator + shortName);
 	
 	// project long wavelength channels 5-7
 	selectImage(title);
 	run("Z Project...", "start=5 stop=7 projection=[Sum Slices]");
 	selectImage("SUM_"+title);
 	rename("Long");
-	
+//	longName = basename+"_ch01.tif";
+//	selectWindow("Long");
+//	saveAs("tiff", output + File.separator + longName);
+
 	// pull out transmitted image channel 8
 	selectImage(title);
 	run("Duplicate...", "duplicate range=8");
 	selectImage(basename+"-1"+extension);
 	run("32-bit");
 	rename("Trans");
-	
+//	transName = basename+"_ch02.tif";
+//	selectWindow("Trans");
+//	saveAs("tiff", output + File.separator + transName);
+
 	// create a new 3-channel image
 	run("Merge Channels...", "c3=Short c2=Long c4=Trans create");
 	selectImage("Composite");
-	saveName = basename+"_merge.tif";
-	
+	//saveName = basename+"_merge.tif";
+	saveName = basename+".tif";
 	saveAs("tiff", output + File.separator + saveName);
+	
+	print("Done");
+	
 	close(); 
-
+	while (nImages>0) {
+	selectImage(nImages);
+	close();
+	}
 
 }

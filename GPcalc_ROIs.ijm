@@ -643,6 +643,7 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 					// Apply the threshold, creating a NaN mask
 					setOption("BlackBackground", true);
 					run("Convert to Mask");
+					createNaNMask();
 					if (isOpen('Threshold')) {selectWindow('Threshold'); run('Close');}
 			 		setBatchMode("hide");
 			 		
@@ -654,6 +655,7 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 				// Apply the threshold, creating a NaN mask
 				setOption("BlackBackground", true);
 				run("Convert to Mask");
+				createNaNMask();
 				}
 				
 			} else { // no tweak
@@ -664,6 +666,7 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 				// Apply the threshold, creating a NaN mask
 				setOption("BlackBackground", true);
 				run("Convert to Mask");
+				createNaNMask();
 			}
 
 		} else if (ThresholdType == "Otsu") {
@@ -674,6 +677,7 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 			// Apply the threshold, creating a NaN mask
 			setOption("BlackBackground", true);
 			run("Convert to Mask");
+			createNaNMask();
 		}
 
 		// createNaNMask();

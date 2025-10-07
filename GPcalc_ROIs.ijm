@@ -310,7 +310,7 @@ print("\n");
 print("------ Output GP-masked GP Images ------");
 print("GP mask threshold method: " + ThresholdType);
 if (ThresholdType=="Normal") {
-	if (ThreshForAll) { // TODO: Fix undefined variable if settings = normal, no tweaking
+	if (ThreshForAll) { 
 		print("GP threshold set individually for each image");
 	}
 	else {
@@ -345,6 +345,7 @@ print("Main results folder is: ");
 print(" " + results_Dir);
 print("\n");
 
+// ---- Process the folder ----
 
 processFolder(imageInputFolder, roiInputFolder, outputFolder, fileSuffix);
 
@@ -366,9 +367,6 @@ selectWindow("Log");
 saveAs("Text", results_Dir + "ProcessingLog_ "+year+months+dayOfMonths+"("+hours+"h"+minutes+")");
 setBatchMode("exit and display");
 
-
-// finished now! Write the log. (TODO: Replace this function with line-by-line logging)
-// printInfo(StartTime);
 
 // ---- Functions ----
 
@@ -538,20 +536,28 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 				setOption("BlackBackground", true);
 				setAutoThreshold("Default dark");
 				run("Threshold..."); // ask user to set the threshold
-				waitForUser("Summed Intensity Image for GP Mask\n1. Adjust only the low-end threshold (the first slider).\n2. Click Apply to apply once you have found a good threshold.\n3. Select the 'Set to NaN' option when asked.\n4. Click OK here to continue...");
+				// waitForUser("Summed Intensity Image for GP Mask\n1. Adjust only the low-end threshold (the first slider).\n2. Click Apply to apply once you have found a good threshold.\n3. Select the 'Set to NaN' option when asked.\n4. Click OK here to continue...");
+				// prompt user to adjust threshold but do not ask them to apply it
+				waitForUser("Summed Intensity Image for GP Mask\n1. Adjust only the low-end threshold (the first slider).\n2. Click OK here to continue...");
 				//if (isOpen('Threshold')) {selectWindow('Threshold'); run('Close');}
-				run("Threshold..."); // run threshold again to retrieve the values
-				getThreshold(GPmaskThreshold,currGPMax); // update the threshold value as tweaked by user
+				//run("Threshold..."); // run threshold again to retrieve the values
+				getThreshold(GPmaskThreshold,currGPMax); // get the threshold value as tweaked by user
 				print("Threshold for GP =", GPmaskThreshold);
+				// Apply the threshold, creating a NaN mask
+				setOption("BlackBackground", true);
+				run("NaN Background");
+				createNaNMask();
 				if (isOpen('Threshold')) {selectWindow('Threshold'); run('Close');}
 		 		setBatchMode("hide");
 		 		
 			} else { // subsequent images --  should use the previously set value
-				// TODO: Fix the failure to use the previously set value
 				getMinAndMax(currGPMin,currGPMax);
 				setThreshold(GPmaskThreshold, currGPMax);
 				print("Threshold for GP =", GPmaskThreshold);
-
+				// Apply the threshold, creating a NaN mask
+				setOption("BlackBackground", true);
+				run("NaN Background");
+				createNaNMask();
 			}
 			
 		} else { // no tweaking
@@ -559,16 +565,23 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 			getMinAndMax(currGPMin,currGPMax);
 			setThreshold(GPmaskThreshold, currGPMax);
 			print("Threshold for GP =", GPmaskThreshold);
+			// Apply the threshold, creating a NaN mask
+			setOption("BlackBackground", true);
+			run("NaN Background");
+			createNaNMask();
 		}
 
 	} else if (ThresholdType == "Otsu") {
 
 		setAutoThreshold("Otsu dark");
-		print("Used Otsu threshold for GP sum image");
-		
+		getThreshold(OtsuGPMaskThreshold,currIFMax);
+		// Apply the threshold, creating a NaN mask
+		setOption("BlackBackground", true);
+		run("NaN Background");
+		createNaNMask();
+		print("Used Otsu threshold of",OtsuGPMaskThreshold," for GP sum image");
 	}
 
-	createNaNMask();
 	imageCalculator("Multiply create", SumMaskName, rawGPname);
 	run(GPLUTname);
 	maskedGPname = imgName + " - GP";
@@ -622,11 +635,14 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 					setOption("BlackBackground", true);
 					setAutoThreshold("Default dark");
 	 	 			run("Threshold...");
-	 	 			waitForUser("Immunofluoresence channel image for IF-mask\n1. Adjust only the low-end threshold (the first slider).\n2. Click Apply to apply once you have found a good threshold./\n3. Click OK here to continue...");
+	 	 			waitForUser("Immunofluoresence channel image for IF-mask\n1. Adjust only the low-end threshold (the first slider).\n2. Click OK here to continue...");
 	 	 			//if (isOpen('Threshold')) {selectWindow('Threshold'); run('Close');}
 					//run("Threshold...");
 					getThreshold(IFmaskThreshold,currIFMax);
 					print("Threshold for IF =", IFmaskThreshold);
+					// Apply the threshold, creating a NaN mask
+					setOption("BlackBackground", true);
+					run("Convert to Mask");
 					if (isOpen('Threshold')) {selectWindow('Threshold'); run('Close');}
 			 		setBatchMode("hide");
 			 		
@@ -635,23 +651,32 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 				getMinAndMax(currIFMin,currIFMax);
 				setThreshold(IFmaskThreshold, currIFMax);
 				print("Threshold for IF =", IFmaskThreshold);
+				// Apply the threshold, creating a NaN mask
+				setOption("BlackBackground", true);
+				run("Convert to Mask");
 				}
 				
-			} else {
+			} else { // no tweak
 
 				getMinAndMax(currIFMin,currIFMax);
 				setThreshold(IFmaskThreshold, currIFMax);
 				print("Threshold for IF =", IFmaskThreshold);
+				// Apply the threshold, creating a NaN mask
+				setOption("BlackBackground", true);
+				run("Convert to Mask");
 			}
 
 		} else if (ThresholdType == "Otsu") {
 			
 			setAutoThreshold("Otsu dark");
-			print("Used Otsu threshold for IF image");
-			
+			getThreshold(OtsuIFMaskThreshold,currIFMax);
+			print("Used Otsu threshold of",OtsuIFMaskThreshold," for IF image");
+			// Apply the threshold, creating a NaN mask
+			setOption("BlackBackground", true);
+			run("Convert to Mask");
 		}
 
-		createNaNMask();
+		// createNaNMask();
 		imageCalculator("Multiply create", IFmaskName, rawGPname);
 		run(GPLUTname);
 		GPIFName = imgName + " - GPIF";

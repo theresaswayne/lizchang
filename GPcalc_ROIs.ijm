@@ -32,7 +32,8 @@ run("Bio-Formats Macro Extensions"); // support native microscope files
 
 requires("1.52p");
 
-nBins = 100; // number of histogram bins to use. 
+// nBins = 100; // number of histogram bins to use. 
+nBins = 200; // number of histogram bins to use. 
 // NB: the histogram labels are the minimum value for each bin.
 
 // ---- Run ----
@@ -266,7 +267,7 @@ if (ch_IF != 0) {
 }
 
 // Set up GP and GPcorrected Arrays for histogram calculations
-nBins=100;
+// nBins=100; // redundant
 GPuncorrected = newArray(nBins);
 for (j = 0; j < nBins; j++) {
 	GPuncorrected[j] = ((j - (nBins/2)) / (nBins/2));
@@ -439,9 +440,9 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 		// This is to match the original processing of the macro.
 		run("8-bit");
 		run("32-bit");
-		saveAs("Tiff", ordered_images_Dir + imgName + "_ordered_32bit.tif");
+		saveAs("Tiff", ordered_images_Dir + basename + "_ordered_32bit.tif");
 	} else {
-		saveAs("Tiff", ordered_images_Dir + imgName + "_ordered.tif");
+		saveAs("Tiff", ordered_images_Dir + basename + "_ordered.tif");
 	}
 
 	rename(ordWindowTitle);
@@ -457,18 +458,18 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 
 		if (GFactorAppliedTo == "Image data (pre GP calc)") {
 			run("Multiply...","value=" + GFactor);
-			saveAs("Tiff", disordered_images_Dir + imgName + "_disordered_GFactorCorrected_32bit.tif");
+			saveAs("Tiff", disordered_images_Dir + basename + "_disordered_GFactorCorrected_32bit.tif");
 		} else {
-			saveAs("Tiff", disordered_images_Dir + imgName + "_disordered_32bit.tif");
+			saveAs("Tiff", disordered_images_Dir + basename + "_disordered_32bit.tif");
 		}
 
 	} else {
 
 		if (GFactorAppliedTo == "Image data (pre GP calc)") {
 			run("Multiply...","value=" + GFactor);
-			saveAs("Tiff", disordered_images_Dir + imgName + "_disordered_GFactorCorrected.tif");
+			saveAs("Tiff", disordered_images_Dir + basename + "_disordered_GFactorCorrected.tif");
 		} else {
-			saveAs("Tiff", disordered_images_Dir + imgName + "_disordered.tif");
+			saveAs("Tiff", disordered_images_Dir + basename + "_disordered.tif");
 		}
 
 	}
@@ -484,11 +485,11 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 		
 			run("8-bit");
 			run("32-bit");
-			saveAs("Tiff", IF_images_Dir + imgName + "_IF_32bit.tif");
+			saveAs("Tiff", IF_images_Dir + basename + "_IF_32bit.tif");
 			
 		} else {
 			
-			saveAs("Tiff", IF_images_Dir + imgName + "_IF.tif");
+			saveAs("Tiff", IF_images_Dir + basename + "_IF.tif");
 			
 		}
 
@@ -500,18 +501,18 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 
 	// difference channels (ordered - disordered)
 	imageCalculator("Subtract create 32-bit", ordWindowTitle, disWindowTitle);
-	diffName = imgName + " - ordered minus disordered";
+	diffName = basename + " - ordered minus disordered";
 	rename(diffName);
 
 	// sum channels (ordered + disordered)
 	imageCalculator("Add create 32-bit", ordWindowTitle, disWindowTitle);
-	sumName = imgName + " - ordered plus disordered";
+	sumName = basename + " - ordered plus disordered";
 	rename(sumName);
 
 	// GP = (difference / sum)
 	imageCalculator("Divide create 32-bit", diffName, sumName);
-	rawGPname = imgName + " - raw GP";
-	saveAs("Tiff", rawGP_images_Dir + imgName + "_rawGP_32bit.tif");
+	rawGPname = basename + " - raw GP";
+	saveAs("Tiff", rawGP_images_Dir + basename + "_rawGP_32bit.tif");
 	rename(rawGPname);
 
 	// set same scale
@@ -521,7 +522,7 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 	// create masked GP by thresholding
 	selectWindow(sumName);
 	run("Duplicate..."," ");
-	saveAs("Tiff", sumGP_images_Dir + imgName + "_Ord+Dis_32bit.tif");
+	saveAs("Tiff", sumGP_images_Dir + basename + "_Ord+Dis_32bit.tif");
 	SumMaskName = "SumMask";
 	rename(SumMaskName);
 	
@@ -584,14 +585,14 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 
 	imageCalculator("Multiply create", SumMaskName, rawGPname);
 	run(GPLUTname);
-	maskedGPname = imgName + " - GP";
-	saveAs("tiff", GP_images_Dir + imgName + " (" + Option_D + ")-masked GP");
+	maskedGPname = basename + " - GP";
+	saveAs("tiff", GP_images_Dir + basename + " (" + Option_D + ")-masked GP");
 	rename(maskedGPname);
 	selectWindow(SumMaskName);
 	close();
 
 	// generate GP-masked histograms for whole image
-	HistoFileName=histogramGP_Dir + imgName + "GP Histogram" + "(masked by " + Option_D + ").csv";
+	HistoFileName=histogramGP_Dir + basename + " WholeImage GP Histogram" + "(masked by " + Option_D + ").csv";
 	HistogramGeneration(maskedGPname, HistoFileName); // histos masked on the GP channel
 
 	// generate GP-masked histograms for each ROI
@@ -605,7 +606,7 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 		roiManager("Select", roiIndex);  // ROI indices start with 0
 		roiName = Roi.getName();
 		print("Generating masked histogram for ROI",roiNum, "named",roiName);
-		RoiHistoFileName=histogramGP_Dir + imgName + "_" + roiName + "_GP Histogram (masked by " + Option_D + ").csv";
+		RoiHistoFileName=histogramGP_Dir + basename + "_" + roiName + "_GP Histogram (masked by " + Option_D + ").csv";
 		HistogramGeneration(maskedGPname, RoiHistoFileName); // histos masked on the GP channel
 		roiManager("deselect");
 		run("Select None");
@@ -683,13 +684,13 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 		// createNaNMask();
 		imageCalculator("Multiply create", IFmaskName, rawGPname);
 		run(GPLUTname);
-		GPIFName = imgName + " - GPIF";
-		saveAs("tiff", GP_IF_images_Dir + imgName + " (" + Option_C + ")-masked GP");
+		GPIFName = basename + " - GPIF";
+		saveAs("tiff", GP_IF_images_Dir + basename + " (" + Option_C + ")-masked GP");
 		rename(GPIFName);
 		selectWindow(IFmaskName);
 		close();
 					
-		HistoFileName=histogramIF_Dir + imgName + "_GP Histogram (masked by " + Option_C + ").csv";
+		HistoFileName=histogramIF_Dir + basename + "_GP Histogram (masked by " + Option_C + ").csv";
 		HistogramGeneration(GPIFName, HistoFileName); // for the whole image
 		
 		// generate IF-masked histograms for each ROI
@@ -703,7 +704,7 @@ function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) 
 			roiManager("Select", roiIndex);  // ROI indices start with 0
 			roiName = Roi.getName();
 			print("Generating IF-masked histogram for ROI",roiNum, "named",roiName);
-			RoiHistoFileName=histogramIF_Dir + imgName + "_" + roiName + "_GP Histogram (masked by " + Option_C + ").csv";
+			RoiHistoFileName=histogramIF_Dir + basename + "_" + roiName + "_GP Histogram (masked by " + Option_C + ").csv";
 			HistogramGeneration(GPIFName, RoiHistoFileName); // histos masked on the IF channel
 			roiManager("deselect");
 			run("Select None");
@@ -800,8 +801,8 @@ function HistogramGeneration (WindowName, HistoFileName) {
 	Array.getStatistics(PixelCounts,min,max,mean,stdDev);
 	Sa=(mean*nBins)-counts[0]-counts[nBins-1];
 	HistogramOutFile=File.open(HistoFileName);
-//	print(HistogramOutFile, "IJ Hist.values	GP values	GP values (GFactor-corrected)	Counts (Pixels)	Counts (Pixels, Normalized)	Counts (Kernel-Smoothed)	Counts (Smoothed, Normalized)");
-	print(HistogramOutFile, "GP values,GP values (GFactor-corrected),Counts (Pixels),Counts (Pixels, Normalized),Counts (Kernel-Smoothed),Counts (Smoothed, Normalized)");
+	//	print(HistogramOutFile, "IJ Hist.values	GP values	GP values (GFactor-corrected)	Counts (Pixels)	Counts (Pixels, Normalized)	Counts (Kernel-Smoothed)	Counts (Smoothed, Normalized)");
+	print(HistogramOutFile, "GP values,GP values (GFactor-corrected),Counts (Pixels),Counts (Pixels Normalized),Counts (Kernel-Smoothed),Counts (Smoothed Normalized)");
 	
 	// export the histogram bins. Ignore the absolute final bin as it's always outside the range we have (final bin #255 is for values > 1.0).
 	for (m = 0; m < nBins; m++) {
@@ -891,14 +892,14 @@ function HSBgeneration(HSBIntensityChannel, OutfileSuffix) {
 	run("Merge Channels...", "red=bR green=bG blue=bB gray=*None*");
 	selectWindow("RGB");
 	run("RGB Color");
-	HSBname = imgName + " False Colour";
+	HSBname = basename + " False Colour";
 	rename(HSBname);
 
 	if (ApplyMedianFilter == "Yes") {
 		run("Median...", "radius=1");
-		saveAs("png", HSB_Dir + imgName + "_HSB(medianfiltered) by " + OutfileSuffix);
+		saveAs("png", HSB_Dir + basename + "_HSB(medianfiltered) by " + OutfileSuffix);
 	} else {
-		saveAs("png", HSB_Dir + imgName + "_HSB by " + OutfileSuffix);
+		saveAs("png", HSB_Dir + basename + "_HSB by " + OutfileSuffix);
 	}
 	close();
 
@@ -920,7 +921,7 @@ function HSBgeneration(HSBIntensityChannel, OutfileSuffix) {
 			MakeLUTbar(HSBLUTName, GPminActual, GPmaxActual, HSB_Dir + "All Images - LUT annotated");
 		}
 	} else {
-		MakeLUTbar(HSBLUTName, GPminActual, GPmaxActual, HSB_LUTs_Dir + imgName + "_LUT annotated");
+		MakeLUTbar(HSBLUTName, GPminActual, GPmaxActual, HSB_LUTs_Dir + basename + "_LUT annotated");
 	}
 
 }

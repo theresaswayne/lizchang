@@ -8,7 +8,7 @@
 // TODO: insert names and citations
 
 // Updated by Theresa Swayne, 2025
-// -- generates histograms for whole image and ROIs saved in an ROIset 
+// -- generates histograms for whole image and for each ROI saved in an ROIset 
 // -- correctly reports threshold used
 
 //  -------- Suggested text for acknowledgement -----------
@@ -395,7 +395,6 @@ function processFolder(imageInput, roiInput, output, suffix) {
 function processFile(imageFolder, roiFolder, outputFolder, imgName, fileNumber) {
 	
 	// this function processes a single image
-	// TODO: Add to log: threshold for gp, threshold for if, possibly gp peak value
 	
 	imagePath = imageFolder + File.separator + imgName;
 	//print("Processing file",fileNumber," at path" ,imagePath);

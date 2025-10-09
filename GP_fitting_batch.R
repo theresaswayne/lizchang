@@ -24,7 +24,7 @@ inputFolder <- dirname(selectedFile) # the input is the parent of the selected f
 # Create an output folder with time-date stamp
 
 thisTime = format(Sys.time(),"%Y-%m-%d_%H%M")
-outputFolder <- file.path(inputFolder,paste0("Output_",thisTime))
+outputFolder <- file.path(inputFolder,paste0("GP_Fitting_",thisTime))
 dir.create(outputFolder) # creates within the input folder if it does not already exist
 
 # Get names of CSV files in the folder
@@ -112,9 +112,15 @@ for (file in files){
   fileNum <- fileNum + 1
 }
 
-# write a single output csv
+# write a merged output csv
 # generate output filename from input name
 outputName = paste(basename(dirname(inputFolder)),"_results.csv", sep = "")
 write_csv(resultTable,file.path(outputFolder, outputName))
 
+summTable <- resultTable %>% 
+  group_by(Region) %>% 
+  summarise(mean_GP = mean(GP_peak), n_ROIs = n())
+
+summaryName = paste(basename(dirname(inputFolder)),"_summary.csv", sep = "")
+write_csv(summTable,file.path(outputFolder, summaryName))
 

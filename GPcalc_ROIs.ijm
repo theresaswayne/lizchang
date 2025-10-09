@@ -6,10 +6,10 @@
 // GPcalc_Rois.jim
 // Based on GPcalc macros by quokka and Ofra Golani
 // TODO: insert names and citations
-// TODO: Strip image extension when naming the histograms
-// TODO: fix histo counts smoothed norm columns
+
 // Updated by Theresa Swayne, 2025
-// -- handles ROIs
+// -- generates histograms for whole image and ROIs saved in an ROIset 
+// -- correctly reports threshold used
 
 //  -------- Suggested text for acknowledgement -----------
 //   "These studies used the Confocal and Specialized Microscopy Shared Resource 

@@ -58,15 +58,34 @@ process_file_func <- function(f, number, out) {
   gp_fit <- nls(y ~ a + (b-a)*exp(-((x-c)^2)/(2*(d^2))),
                 data = gpdf,
                 start = list(a=a_guess, b=b_guess, c=mu_guess, d=d_guess))
+  q <- coef(gp_fit)
   
-  # plot the fitted function in red, guessed function in blue, and the raw data
-  # q <- coef(gp_fit)
-  # outPlot <- plot(gpdf$x, gpdf$y)
-  # curve(q["a"] + (q["b"]-q["a"])*exp(-((x-q["c"])^2)/(2*(q["d"]^2))), from = -1, to = 1, lwd=2, col="Red", add=TRUE)
-  # curve(a_guess + (b_guess-a_guess)*exp(-((x-mu_guess)^2)/(2*(d_guess^2))), from = -1, to = 1, lwd=2, col="Blue",add=TRUE)
   # retrieve the estimated mean (c) and its standard error
   gp_mean <- summary(gp_fit)$coefficients[3,1]
   gp_se <- summary(gp_fit)$coefficients[3,2]
+  
+  # Prepare a plot
+  
+  # create the plot name
+  fileNameBase <- basename(f)
+  plotName = paste(fileNameBase,"_plot.pdf", sep = "")
+  
+  # create a png file 5x5 inches
+  pdf(file = file.path(out, plotName), width = 5, height = 5) 
+  
+  # create the plot from the data points
+  outPlot <- plot(gpdf$x, gpdf$y)
+  
+  # add curves for the fitted function in red, guessed function in blue
+  curve(q["a"] + (q["b"]-q["a"])*exp(-((x-q["c"])^2)/(2*(q["d"]^2))), from = -1, to = 1, lwd=2, col="Red", add=TRUE)
+  curve(a_guess + (b_guess-a_guess)*exp(-((x-mu_guess)^2)/(2*(d_guess^2))), from = -1, to = 1, lwd=2, col="Blue",add=TRUE)
+
+  # add a legend
+  legend("topleft", inset = 0.02,
+         legend = c("Fitted", "Guessed"), 
+         col = c("Red", "Blue"), lty=1:1, cex=0.8)
+  # create the file
+  dev.off()
   
   # ---- Record the results ----
   
@@ -94,8 +113,6 @@ process_file_func <- function(f, number, out) {
   }
   # generate output filename from input name
   # outputName = paste(file_path_sans_ext(basename(f)),"_results.csv", sep = "")
-  
-  # TODO: save plot with curve fit overlays
   
   # write CSV file
   #write_csv(result,file.path(out, outputName))
